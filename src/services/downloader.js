@@ -36,7 +36,7 @@ async function checkYtDlp() {
 }
 
 const baseArgs = [
-  '--socket-timeout', '10',
+  '--socket-timeout', '15',
   '--no-check-certificates',
   '--abort-on-error',
 ];
@@ -58,11 +58,21 @@ async function runYtDlp(args, timeout = 120000) {
   }
 }
 
+const infoCache = new Map();
+const CACHE_TTL = 300000;
+
 async function fetchVideoInfo(url) {
+  const cached = infoCache.get(url);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
   const args = [
     '--dump-json',
     '--no-download',
     '--no-warnings',
+    '--no-playlist',
+    '--skip-unavailable-fragments',
+    '--extractor-retries', '1',
+    '--youtube-skip-dash-manifest',
     '--restrict-filenames',
     url,
   ];
@@ -71,25 +81,20 @@ async function fetchVideoInfo(url) {
     const stdout = await runYtDlp(args, 20000);
     const data = JSON.parse(stdout.trim().split('\n')[0]);
 
-    return {
+    const result = {
       id: data.id,
       title: data.title || 'Unknown Title',
       thumbnail: data.thumbnail || null,
       duration: data.duration || 0,
       uploader: data.uploader || data.channel || 'Unknown',
       platform: data.extractor || data.extractor_key || 'Unknown',
-      formats: (data.formats || []).map((f) => ({
-        formatId: f.format_id,
-        height: f.height || 0,
-        width: f.width || 0,
-        ext: f.ext || 'mp4',
-        filesize: f.filesize || f.filesize_approx || 0,
-        vcodec: f.vcodec || 'none',
-        acodec: f.acodec || 'none',
-        tbr: f.tbr || 0,
-      })),
       webpageUrl: data.webpage_url || url,
     };
+
+    infoCache.set(url, { data: result, ts: Date.now() });
+    if (infoCache.size > 100) infoCache.clear();
+
+    return result;
   } catch (error) {
     throw new Error(`Failed to fetch video info: ${error.message}`);
   }
