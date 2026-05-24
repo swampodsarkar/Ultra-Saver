@@ -1,7 +1,6 @@
 FROM node:18-alpine
 
-RUN apk add --no-cache yt-dlp ffmpeg python3 py3-pip
-RUN pip3 install --no-cache-dir yt-dlp
+RUN apk add --no-cache yt-dlp ffmpeg
 
 WORKDIR /app
 
