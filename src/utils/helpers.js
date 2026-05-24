@@ -58,15 +58,13 @@ function getDailyReset(user) {
 }
 
 function getRemainingDownloads(user) {
-  if (!user) return config.dailyLimitFree;
-  if (getDailyReset(user)) return config.dailyLimitFree;
-  const limit = user.premiumStatus ? config.dailyLimitPremium : config.dailyLimitFree;
-  return Math.max(0, limit - (user.dailyDownloads || 0));
+  if (!user) return config.dailyLimit;
+  if (getDailyReset(user)) return config.dailyLimit;
+  return Math.max(0, config.dailyLimit - (user.dailyDownloads || 0));
 }
 
 function canDownload(user) {
   if (!user || user.isBanned) return false;
-  if (user.premiumStatus) return true;
   return getRemainingDownloads(user) > 0;
 }
 

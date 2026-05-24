@@ -19,14 +19,11 @@ module.exports = {
     },
   },
 
-  adminIds: (process.env.ADMIN_IDS || '').split(',').map(Number).filter(Boolean),
-
   ytdlpPath: process.env.YTPL_PATH || 'yt-dlp',
 
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 52428800,
   tempDir: process.env.TEMP_DIR || './temp',
-  dailyLimitFree: parseInt(process.env.DAILY_LIMIT_FREE) || 10,
-  dailyLimitPremium: parseInt(process.env.DAILY_LIMIT_PREMIUM) || 100,
+  dailyLimit: 5,
   cooldownTime: parseInt(process.env.COOLDOWN_TIME) || 10,
 
   supportedPlatforms: [

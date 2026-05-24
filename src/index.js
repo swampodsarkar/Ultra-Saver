@@ -4,20 +4,13 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const { Telegraf, session } = require('telegraf');
 const config = require('./config');
 const { initFirebase } = require('./database/firebase');
-const { UserModel } = require('./database/models');
 const { antispamMiddleware } = require('./middleware/antispam');
 const { rateLimitMiddleware } = require('./middleware/ratelimit');
 const { detectPlatform } = require('./utils/helpers');
 
 const { setupStartCommand } = require('./commands/start');
 const { setupDownloadCommand, handleDownloadRequest } = require('./commands/download');
-const { setupPremiumCommand } = require('./commands/premium');
-const { setupCoinsCommand } = require('./commands/coins');
-const { setupReferralCommand } = require('./commands/referral');
-const { setupHistoryCommand } = require('./commands/history');
-const { setupProfileCommand } = require('./commands/profile');
 const { setupHelpCommand } = require('./commands/help');
-const { setupAdminCommand } = require('./commands/admin');
 const { flushSave } = require('./database/localdb');
 
 const downloader = require('./services/downloader');
@@ -55,57 +48,17 @@ async function main() {
 
   setupStartCommand(bot);
   setupDownloadCommand(bot);
-  setupPremiumCommand(bot);
-  setupCoinsCommand(bot);
-  setupReferralCommand(bot);
-  setupHistoryCommand(bot);
-  setupProfileCommand(bot);
   setupHelpCommand(bot);
-  setupAdminCommand(bot);
 
   bot.on('text', async (ctx) => {
     if (!ctx.chat || ctx.chat.type !== 'private') return;
 
     const text = ctx.message.text;
-    const userId = ctx.from.id;
-
-    const user = await UserModel.get(userId);
-    if (user?.isBanned) {
-      return ctx.reply('\u26D4 Your account has been restricted. Contact support.');
-    }
-
-    if (ctx.session.awaitingRedeem) {
-      ctx.session.awaitingRedeem = false;
-      return ctx.reply('\uD83C\uDF81 Premium code system coming soon. Contact admin for now.');
-    }
-
-    if (ctx.session.awaitingBroadcast) {
-      ctx.session.awaitingBroadcast = false;
-      const users = await (require('./database/models').UserModel.getAll());
-      const userIds = Object.keys(users);
-      let sent = 0;
-      let failed = 0;
-      const statusMsg = await ctx.reply(`\uD83D\uDCE3 Broadcasting to ${userIds.length} users...`);
-      for (const id of userIds) {
-        try {
-          await ctx.telegram.sendMessage(parseInt(id), text, { parse_mode: 'HTML' });
-          sent++;
-        } catch { failed++; }
-        await new Promise((r) => setTimeout(r, 50));
-      }
-      return ctx.telegram.editMessageText(
-        ctx.chat.id, statusMsg.message_id, null,
-        `\u2705 Broadcast done!\n\n\u2705 Sent: ${sent}\n\u274C Failed: ${failed}`
-      );
-    }
-
-    const platform = detectPlatform(text);
-    if (platform) {
-      return handleDownloadRequest(ctx, text);
-    }
 
     if (ctx.session.awaitingUrl) {
       ctx.session.awaitingUrl = false;
+      const platform = detectPlatform(text);
+      if (platform) return handleDownloadRequest(ctx, text);
       return ctx.reply(
         '\u274C <b>Unsupported Link</b>\n\n' +
         'Please send a valid video link from:\n' +
@@ -114,13 +67,16 @@ async function main() {
       );
     }
 
-    const helpText =
+    const platform = detectPlatform(text);
+    if (platform) return handleDownloadRequest(ctx, text);
+
+    ctx.reply(
       '\u2753 <b>Need Help?</b>\n\n' +
       'Send a video link to start downloading.\n' +
       'Use /start to see the main menu.\n\n' +
-      'Supported: YouTube, TikTok, Facebook, Instagram, Twitter/X, Vimeo';
-
-    ctx.reply(helpText, { parse_mode: 'HTML' });
+      'Supported: YouTube, TikTok, Facebook, Instagram, Twitter/X, Vimeo',
+      { parse_mode: 'HTML' }
+    );
   });
 
   bot.on('message', async (ctx) => {

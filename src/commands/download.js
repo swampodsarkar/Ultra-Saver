@@ -28,16 +28,12 @@ async function handleDownloadRequest(ctx, url) {
   }
 
   if (!canDownload(user)) {
-    const remaining = getRemainingDownloads(user);
-    if (remaining <= 0) {
-      return ctx.reply(
-        '\u26A0\uFE0F <b>Daily limit reached!</b>\n\n' +
-        'You have used all your free downloads today.\n' +
-        '\uD83D\uDC51 Upgrade to Premium for unlimited downloads!\n' +
-        '\uD83D\uDCB0 Or earn more coins for extra downloads.',
-        { parse_mode: 'HTML' }
-      );
-    }
+    return ctx.reply(
+      '\u26A0\uFE0F <b>Daily limit reached!</b>\n\n' +
+      'You have used all your 5 downloads today.\n' +
+      'Come back tomorrow for more!',
+      { parse_mode: 'HTML' }
+    );
   }
 
   const platform = detectPlatform(url);
@@ -151,8 +147,7 @@ async function processDownload(ctx, quality) {
       `\u2705 <b>Download Complete</b>\n\n` +
       `\uD83C\uDFAC ${safeTitle}\n` +
       `\uD83C\uDFA5 ${platform} | ${qualityLabel}\n` +
-      `\uD83D\uDCC2 ${formatSize(downloadResult.size)}\n\n` +
-      `\uD83E\uDD1D Powered by DownloaderPro Bot`;
+      `\uD83D\uDCC2 ${formatSize(downloadResult.size)}`;
 
     if (downloadResult.size > config.maxFileSize) {
       await ctx.reply(
@@ -198,22 +193,13 @@ async function processDownload(ctx, quality) {
     await downloader.cleanupFile(downloadResult.filePath);
     await UserModel.incrementDownloads(userId);
 
-    if (!user.premiumStatus) {
-      const remaining = getRemainingDownloads(await UserModel.get(userId));
-      const dailyTotal = user.premiumStatus ? config.dailyLimitPremium : config.dailyLimitFree;
-      const used = (user.dailyDownloads || 0) + 1;
-      await ctx.reply(
-        `\uD83D\uDCE6 <b>Download ${used}/${dailyTotal}</b>\n\n` +
-        `\uD83D\uDC51 Upgrade to Premium for unlimited HD downloads!\n` +
-        `\uD83D\uDCB0 Earn coins for extra downloads.`,
-        { parse_mode: 'HTML', reply_markup: goBackKeyboard().reply_markup }
-      ).catch(() => {});
-    } else {
-      await ctx.reply(
-        `\u2705 <b>Download Complete!</b>\n\nSend another link or choose an option:`,
-        { parse_mode: 'HTML', reply_markup: goBackKeyboard().reply_markup }
-      ).catch(() => {});
-    }
+    const remaining = getRemainingDownloads(await UserModel.get(userId));
+    await ctx.reply(
+      `\u2705 <b>Download Complete!</b>\n\n` +
+      `\uD83D\uDCE6 Remaining today: <b>${remaining}/${config.dailyLimit}</b>\n\n` +
+      `Send another link or go back to menu.`,
+      { parse_mode: 'HTML', reply_markup: goBackKeyboard().reply_markup }
+    ).catch(() => {});
 
     await DownloadModel.log(userId, url, platform, qualityLabel, 'completed', downloadResult.size);
   } catch (error) {
