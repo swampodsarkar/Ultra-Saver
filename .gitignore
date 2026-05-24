@@ -1,0 +1,6 @@
+node_modules/
+.env
+temp/
+data/
+bot_err.log
+bot_out.log
